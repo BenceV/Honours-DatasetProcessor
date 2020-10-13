@@ -42,8 +42,18 @@ def output_file_creation(name):
         "o_b_l_y",
         "o_m_m_x",
         "o_m_m_y",
-        "e_x",
-        "e_y"]
+        "o_pos_x",
+        "o_pos_y",
+        "o_angle",
+        "e_pos_x",
+        "e_pos_y",
+        "e_angle",
+        "force_x",
+        "force_y",
+        "torque",
+        "base_vel",
+        "base_acc",
+        "trajectory"]
     # Add name to the list file names
     file_names = file_names + [name]
     # Open file and write header  
@@ -71,7 +81,7 @@ def create_name_based_on_mixing(part_index, number_of_parts, base_fileName, out_
     return os.path.join(out_dir, name)
 
 # Collect the properties of the files by extracting parameters of the trajectory from the name
-def collect_trajectory_properties(f):
+def collect_trajectory_properties(f, shape):
     properties = {}
 
     v_ind = f.find('_v=') + 3
@@ -93,6 +103,8 @@ def collect_trajectory_properties(f):
     s_ind = f.find('_s=') + 3
     point = float(f[s_ind:f.find('_', s_ind)])
     properties['push_point'] = point
+
+    properties['shape'] = shape
 
     return properties
 

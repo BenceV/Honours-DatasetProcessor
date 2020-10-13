@@ -1,7 +1,7 @@
 import numpy as np
 
 # Based on the type of rigidbody extrapolate the corners of the object from its position and orientation
-def get_corner_positions(obj_name, obj_pd):
+def get_node_positions(obj_name, obj_pd):
     """
     This function reorders the vertices in an array for polygon vertices.
     We do this by:
@@ -84,18 +84,38 @@ def get_corner_positions(obj_name, obj_pd):
     corns_np = np.append(corns_np,b_l,axis=1)
     corns_np = np.append(corns_np,cents,axis=1)
     
+    
+    corns_np = corns_np.reshape((corns_np.shape[0],5,2))
+
     return corns_np
 
-def get_node_positions(corners_np, endeffector_pd):
+def get_states(nodes_np, object_pd, endeffector_pd, forceTorque_pd, velocity, acceleration, traj_index):
     # Convert dataframe to numpy 
-    endeffector_np = endeffector_pd.to_numpy()
-    endeffector_position = endeffector_np[:, 0:2]
-    # Append the two lists together
-    node_positions = np.append(corners_np, endeffector_position, axis=1)
-    node_positions = node_positions.reshape((node_positions.shape[0],6,2))
+    object_np      = np.array([object_pd.to_numpy()])
+    endeffector_np = np.array([endeffector_pd.to_numpy()])
+    forceTorque_np = np.array([forceTorque_pd.to_numpy()])
+    # Broacastable scalars
+    velocity_np = np.tile(velocity, (1, object_np.shape[1], 1))
+    acceleration_np = np.tile(acceleration, (1, object_np.shape[1], 1))
+    traj_index_np = np.tile(traj_index, (1, object_np.shape[1], 1))
 
-    return node_positions
+    # Uniform obj_nps
+    if len(nodes_np.shape) == 3:
+        # Flatten into a vector
+        nodes_np = nodes_np.reshape((len(nodes_np), 10))
+        nodes_np = np.array([nodes_np])
+    elif len(nodes_np.shape) == 4:
+        nodes_np = nodes_np.reshape((len(nodes_np), nodes_np.shape[1], 10))
 
+    # Append previous values
+    states_np = np.append(nodes_np, object_np, axis=2)
+    states_np = np.append(states_np, endeffector_np, axis=2)
+    states_np = np.append(states_np, forceTorque_np, axis=2)
+    # Append scalars
+    states_np = np.append(states_np, velocity_np, axis=2)
+    states_np = np.append(states_np, acceleration_np, axis=2)
+    states_np = np.append(states_np, traj_index_np, axis=2)
+    return states_np
 
 
 

@@ -11,8 +11,8 @@ import csv
 from os import listdir
 from os.path import isfile, join
 
-from Scripts.FileManipulationTools import read_file, create_name_based_on_mixing, collect_trajectory_properties, _setup_output
-from Scripts.DataManipulationTools import get_corner_positions, get_node_positions, sample_dataset, clear_dataset
+from ProcessTrajectoriesUtils.FileManipulationTools import read_file, create_name_based_on_mixing, collect_trajectory_properties, _setup_output
+from ProcessTrajectoriesUtils.DataManipulationTools import get_node_positions, get_states, sample_dataset, clear_dataset
 
 
 class TrajectoryProcessor:
@@ -127,7 +127,7 @@ class TrajectoryProcessor:
             print()
 
     # From a list of corner positions (states) create examples (state tuples)
-    def _create_examples_and_write_file(self, cr_eg_index, traj, props, shape):
+    def _create_examples_and_write_file(self, cr_eg_index, traj, props):
         vel = None
         acc = None
         if not self.mixed_vel:
@@ -187,7 +187,7 @@ class TrajectoryProcessor:
                         number_of_parts = self.number_of_steps,
                         base_fileName = self.base_fileName,
                         out_dir = self.out_dir,
-                        shape = shape,
+                        shape =  props['shape'],
                         vel = vel,
                         acc = acc),
                     'a', newline='') as file:
@@ -205,7 +205,7 @@ class TrajectoryProcessor:
     # (This additional loop is required to account for the removed datapoints,
     # as they are not simply removed by splitted upon.)
     # This function ensures that there are no jumps between incosequtive states
-    def _create_list_of_examples(self, processed_nps, cr_eg_index, props, shape):
+    def _create_list_of_examples(self, processed_nps, cr_eg_index, props):
         """
         This function takes in a list of numpy arrays. 
         Each ndarray in the list is an unbroken (no jumps) trajectory where
@@ -245,14 +245,14 @@ class TrajectoryProcessor:
         """
         # For each of the 
         for traj in processed_nps:
-            cr_eg_index = self._create_examples_and_write_file(cr_eg_index, traj, props, shape)
+            cr_eg_index = self._create_examples_and_write_file(cr_eg_index, traj, props)
         
         return cr_eg_index
 
     # Process the contents of a single file 
-    def _process_trajectory(self, dict_obj, shape):
+    def _process_trajectory(self, trajectories_dict, props):
         # Convert to dataframe
-        obj_pd, tip_pd, ft_pd = self.create_pandas_dataframes(dict_obj)
+        obj_pd, tip_pd, ft_pd = self.create_pandas_dataframes(trajectories_dict)
         # Get rid of redundant entries and ensuring temporal ordering
 
         # Treat orientation jumps, limit the range of orientation values
@@ -262,20 +262,18 @@ class TrajectoryProcessor:
         # Drop nan values
         obj_pd_dropped, tip_pd_dropped, ft_pd_dropped = clear_dataset(obj_pd_sampled, tip_pd_sampled, ft_pd_sampled)
         # Get Corner Positions
-        obj_np = get_corner_positions(shape, obj_pd_dropped)
-        # Add the end-effector to the corner positions
-        nodes_np = get_node_positions(obj_np, tip_pd_dropped)
-        
+        nodes_np = get_node_positions(props['shape'], obj_pd_dropped)
+        # Get state vectors
+        states_np = get_states(
+            nodes_np = nodes_np, 
+            object_pd = obj_pd_dropped, 
+            endeffector_pd = tip_pd_dropped, 
+            forceTorque_pd = ft_pd_dropped, 
+            velocity = props['vel'], 
+            acceleration = props['acc'],
+            traj_index = self.traj_index)
 
-        # Uniform obj_nps
-        if len(nodes_np.shape) == 3:
-            # Flatten into a vector
-            nodes_np = nodes_np.reshape((len(nodes_np), 12))
-            nodes_np = np.array([nodes_np])
-        elif len(nodes_np.shape) == 4:
-            nodes_np = nodes_np.reshape((len(nodes_np), nodes_np.shape[1], 12))
-
-        return nodes_np
+        return states_np
 
     # Process all the files in the folder
     def _process_trajectories(self):
@@ -296,12 +294,15 @@ class TrajectoryProcessor:
 
         # Set index to 0
         cr_eg_index = 0
+        self.traj_index = 0
         for f in files:
             # Read file
             dict_obj = read_file(self.source_dir, f)
             # Get properties:
-            properties = collect_trajectory_properties(f)
+            properties = collect_trajectory_properties(f, shape)
             # Process file
-            processed_nps = self._process_trajectory(dict_obj, shape)
+            processed_nps = self._process_trajectory(dict_obj, properties)
             # Write example tuple following multi 
-            cr_eg_index = self._create_list_of_examples(processed_nps, cr_eg_index, properties, shape)
+            cr_eg_index = self._create_list_of_examples(processed_nps, cr_eg_index, properties)
+            # Update traj index 
+            self.traj_index += 1 
