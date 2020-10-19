@@ -16,7 +16,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     pre = DistanceFilter(args)
-    pre.filterStates()
+    pre.flag_contacts()
     
 
 if __name__ == "__main__":

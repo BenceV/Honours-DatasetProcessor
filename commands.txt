@@ -1,1 +1,3 @@
 python ProcessTrajectories.py --source-dir D:\Projects\Honours\pd_raw\abs\rect1 --out-dir D:\Projects\Honours\ProcessedDatasets --base-out-filename Test --number-of-steps-in-one-example 2
+
+python VisualiseDataset.py -f D:\Projects\Honours\ProcessedDatasets\Test_rect1_1_of_2.csv -i 0 
