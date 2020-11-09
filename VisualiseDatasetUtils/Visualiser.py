@@ -33,6 +33,8 @@ class Visualiser:
         # Extract nodes
         nodes_np = trajectory_dict["nodes"][:, :-2]
         nodes_np = np.reshape(nodes_np, (len(nodes_np), 4, 2))
+        # Extract contact
+        contact_np = trajectory_dict["contact"]
 
         center_loc_x = np.mean(obj_np[:, 0])
         center_loc_y = np.mean(obj_np[:, 1])
@@ -95,7 +97,11 @@ class Visualiser:
             
             # Force Torque Sensor: Values
             ft_i = np.around(ft_np[i],4)
-            str_to_disp = "\n".join(['FT Sensor:','Force x: '+str(ft_i[0])+' N', 'Force y: '+str(ft_i[1])+' N', 'Torque: '+ str(ft_i[2])+'Nm'])
+            str_to_disp = "\n".join(['FT Sensor:',
+                                        'Force x: '+str(ft_i[0])+' N', 
+                                        'Force y: '+str(ft_i[1])+' N', 
+                                        'Torque: ' +str(ft_i[2])+' Nm',
+                                    'In contact: ' +str(bool(contact_np[i]))])
             values_at_i.set_text(str_to_disp)
             
             # Rectangle
@@ -163,7 +169,9 @@ class Visualiser:
     def extract_trajectory(self, file, index):
         
         trajectory = np.array([])
+        in_contact = np.array([])
         header = 0
+        found_index = False
         #read csv, and split on "," the line
         with open(file, mode ='r') as fl: 
             # reading the CSV file 
@@ -172,22 +180,29 @@ class Visualiser:
             # displaying the contents of the CSV file 
             for row in csv_file:
                 try:
-                    traj_index = int(float(row[-1]))
-                    row = [float(ele) for ele in row] 
+                    traj_index = int(float(row[-2]))
                     if traj_index == index:
+                        row[:-1] = [float(ele) for ele in row[:-1]]
+                        row[-1] = row[-1] in ["True"]
+                        found_index = True
                         # Append to trajectory
                         if len(trajectory) == 0:
                             trajectory = np.array([row])
                         else:
                             trajectory = np.append(trajectory, [row], axis=0)
+
+                    if traj_index != index and found_index:
+                        break
                 except:
                     header = np.array(row)
+                    #print(header)
                 
         return trajectory
 
     def create_dictionary(self, trajectory):
+
         traj_dict = {}
-        
+
         traj_dict["obj"] = trajectory[:, 11:14]
 
         traj_dict["tip"] = trajectory[:, 14:17]
@@ -195,7 +210,9 @@ class Visualiser:
         traj_dict["ft"] = trajectory[:, 17:20]
 
         traj_dict["nodes"] = trajectory[:, 1:11]
-
+        
+        traj_dict["contact"] = trajectory[:, -1]
+        
         return traj_dict
 
     def visualise(self):
